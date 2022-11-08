@@ -5,23 +5,6 @@
 namespace ImGameUI
 {
 
-enum Sound
-{
-    Sound_ItemEntered,
-    Sound_ButtonClicked,
-    Sound_SliderChanged,
-    Sound_CheckboxTicked,
-    Sound_ComboboxSelected,
-    SoundCount
-};
-
-
-struct SoundPlayer
-{
-    virtual void play( Sound sound ) = 0;
-};
-
-
 class GameUI
 {
 public:
@@ -34,8 +17,6 @@ public:
         float               m_itemFontSize = 0;
         const char*         m_smallItemFont = nullptr;
         float               m_smallItemFontSize = 0;
-
-        SoundPlayer*        m_soundPlayer = nullptr;
     };
 
     GameUI();
@@ -45,7 +26,7 @@ public:
     void init( const Config& config );
 
     // Start the immediate mode rendering of the UI. This renders the menu screen backdrop.
-    void begin( int screenWidth, int screenHeight, void* textureHandle );
+    void begin( float screenWidth, float screenHeight, void* textureHandle );
 
     // Finish the immediate mode rendering of the UI. After this, you will still need to call ImGui::Render() and ImGui_Impl*_RenderDrawData().
     void end();
@@ -74,7 +55,6 @@ private:
     float screenX( int x ) const;
     float screenY( int y ) const;
     ImVec2 screenXY( int x, int y ) const;
-    void playSound( Sound sound );
 
     enum FontType
     {
@@ -89,10 +69,6 @@ private:
     float           m_screenWidth = 0.0f;
     float           m_screenHeight = 0.0f;
     unsigned int    m_currentFlags = 0;
-    SoundPlayer*    m_soundPlayer = nullptr;
-    ImGuiID         m_currentHoveredID = 0;         // Keep track of which item is hovered over for sound activation
-    ImGuiID         m_currentMenuID = 0;            // Keep track of the last menu to see if the menu has changed
-    bool            m_newMenuThisFrame = false;     // Flag to say the menu if new this frame
 };
 
 }
