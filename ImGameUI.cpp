@@ -30,16 +30,20 @@ void GameUI::init( const Config& config )
     m_fonts[ Font_Title ] = io.Fonts->AddFontFromFileTTF( config.m_titleFont, config.m_titleFontSize );
     m_fonts[ Font_Item ] = io.Fonts->AddFontFromFileTTF( config.m_itemFont, config.m_itemFontSize );
     m_fonts[ Font_ItemSmall ] = io.Fonts->AddFontFromFileTTF( config.m_smallItemFont, config.m_smallItemFontSize );
+
+    m_soundPlayer = config.m_soundPlayer;
 }
 
 
-void GameUI::begin( float screenWidth, float screenHeight, void* textureHandle )
+void GameUI::begin( int screenWidth, int screenHeight, void* textureHandle )
 {
-    m_screenWidth = screenWidth;
-    m_screenHeight = screenHeight;
+    m_screenWidth = (float)screenWidth;
+    m_screenHeight = (float)screenHeight;
     m_aspectCorrection = (gUnitsX / gUnitsY) / (m_screenWidth / m_screenHeight);
 
     float scale = m_screenHeight / gUnitsY;
+
+    m_newMenuThisFrame = false;
 
     applyGameUIStyle( scale );
 
@@ -75,6 +79,11 @@ void GameUI::begin( float screenWidth, float screenHeight, void* textureHandle )
 
 void GameUI::end()
 {
+    if ( !ImGui::IsAnyItemHovered() )
+    {
+        m_currentHoveredID = 0;
+    }
+
     ImGui::End();
     ImGui::EndFrame();
 }
@@ -135,9 +144,11 @@ bool GameUI::checkBox( const char* name, bool* value )
     ImGui::Text( name ); ImGui::SameLine();
 
     ImGui::SetCursorPosX( contentRegionWidth - screenX( (int)( 140 ) ) );
-    //ImGui::PushItemWidth( screenCoordX( 20 ) );
     bool valueChanged = ImGui::Checkbox( itemName, value );
-    //ImGui::PopItemWidth();
+    if ( valueChanged )
+    {
+        playSound( Sound_CheckboxTicked );
+    }
     return valueChanged;
 }
 
@@ -150,7 +161,12 @@ bool GameUI::slider( const char* name, float* value )
     ImGui::SetCursorPosX( screenX( 20 ) );
     ImGui::Text( name ); ImGui::SameLine();
     ImGui::SetCursorPosX( screenX( (int)( gMenuWidth / 3.0f ) ) );
-    return ImGui::SliderFloat( itemName, value, 0.0f, 1.0f, "%.1f" );
+    bool valueChanged = ImGui::SliderFloat( itemName, value, 0.0f, 1.0f, "%.1f" );
+    if ( valueChanged )
+    {
+        playSound( Sound_SliderChanged );
+    }
+    return valueChanged;
 }
 
 
@@ -185,6 +201,11 @@ bool GameUI::comboBox( const char* name, int numOptions, const char* options[], 
     }
     ImGui::PopItemWidth();
 
+    if ( valueChanged )
+    {
+        playSound( Sound_ComboboxSelected );
+    }
+
     return valueChanged;
 }
 
@@ -197,10 +218,8 @@ void GameUI::drawTitleBar( const char* text )
 
     const ImVec2 itemSize( screenX( gMenuWidth ), ImGui::CalcTextSize( text ).y + style.FramePadding.y * 2.0f );
 
-    const ImVec2 cursorPos = ImGui::GetWindowPos();// ImGui::GetCursorScreenPos();
+    const ImVec2 cursorPos = ImGui::GetWindowPos();
     const ImRect buttonRect( cursorPos.x, cursorPos.y, cursorPos.x + itemSize.x, cursorPos.y + itemSize.y );
-
-//                const ImRect labelRect( buttonRect.Min.x, buttonRect.Max.y - labelHeight - ImGui::GetStyle().FramePadding.y, buttonRect.Max.x, buttonRect.Max.y );
 
     ImGui::GetWindowDrawList()->AddRectFilled( buttonRect.Min, buttonRect.Max, IM_COL32( 0, 0, 50, 180 ) );
    // ImGui::GetWindowDrawList()->AddImage( m_menuTexture->getHandle(), buttonRect.Min, buttonRect.Max, ImVec2( 0.0f, 0.0f ), ImVec2( 1.0f, 0.2f ), IM_COL32( 255, 255, 255, 100 ) );
@@ -208,6 +227,13 @@ void GameUI::drawTitleBar( const char* text )
     ImGui::SetCursorPosX( (ImGui::GetWindowWidth() - ImGui::CalcTextSize(text).x) / 2.f);
     ImGui::SetCursorPosY( ImGui::GetCursorPosY() + style.FramePadding.y );
     ImGui::Text( text );
+
+    ImGuiID id = ImGui::GetID( text );
+    if ( m_currentMenuID != id )
+    {
+        m_currentMenuID = id;
+        m_newMenuThisFrame = true;
+    }
 
     ImGui::PopFont();
 
@@ -224,10 +250,26 @@ bool GameUI::button( const char* label )
     float itemWidth = screenX( gMenuWidth - 100 );
 
     float off = (avail - itemWidth) * 0.5f;
-    if (off > 0.0f)
+    if ( off > 0.0f )
         ImGui::SetCursorPosX(ImGui::GetCursorPosX() + off);
 
-    return ImGui::Button( label, ImVec2( itemWidth, 0.0f ) );
+    bool valueChanged = ImGui::Button( label, ImVec2( itemWidth, 0.0f ) );
+    if ( valueChanged )
+    {
+        playSound( Sound_ButtonClicked );
+    }
+
+    ImGuiID id = ImGui::GetID( label );
+    if ( ImGui::IsItemHovered() && m_currentHoveredID != id )
+    {
+        m_currentHoveredID = id;
+        if ( !valueChanged && !m_newMenuThisFrame )
+        {
+            playSound( Sound_ItemEntered );
+        }
+    }
+
+    return valueChanged;
 }
 
 
@@ -266,8 +308,8 @@ void GameUI::applyGameUIStyle( float scale )
     style.ButtonTextAlign = ImVec2(0.5, 0.5);
     style.SelectableTextAlign = ImVec2(0.0, 0.0);
 
-    #pragma warning(push)
-    #pragma warning(disable: 4305 )
+#pragma warning(push)
+#pragma warning(disable: 4305 )
 
     style.Colors[ImGuiCol_Text] = ImVec4(1.0, 1.0, 0.0, 1.0);
     style.Colors[ImGuiCol_TextDisabled] = ImVec4(0.4980392158031464, 0.4980392158031464, 0.4980392158031464, 1.0);
@@ -322,12 +364,21 @@ void GameUI::applyGameUIStyle( float scale )
     style.Colors[ImGuiCol_NavWindowingHighlight] = ImVec4(1.0, 0.3882353007793427, 0.0, 1.0);
     style.Colors[ImGuiCol_NavWindowingDimBg] = ImVec4(0.0, 0.0, 0.0, 0.5860000252723694);
     style.Colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.0, 0.0, 0.0, 0.5860000252723694);
-    #pragma warning(pop)
+#pragma warning(pop)
     style.ScaleAllSizes( scale * 5.0f );
 
     m_fonts[ Font_Title ]->Scale = scale * 0.5f;
     m_fonts[ Font_Item ]->Scale = scale * 0.5f;
     m_fonts[ Font_ItemSmall ]->Scale = scale * 0.5f;
+}
+
+
+void GameUI::playSound( Sound sound )
+{
+    if ( m_soundPlayer )
+    {
+        m_soundPlayer->play( sound );
+    }
 }
 
 };
