@@ -36,6 +36,17 @@ public:
         float               m_smallItemFontSize = 0;
 
         SoundPlayer*        m_soundPlayer = nullptr;
+
+        struct Style
+        {
+            int                 m_menuWidth = 1000;
+            int                 m_menuHeight = 600;
+            ImVec4              m_colourText = ImVec4( 1.0f, 1.0f, 0.0f, 1.0f );
+            ImVec4              m_colourDisabledText = ImVec4( 0.5f, 0.5f, 0.5f, 1.0f );
+            ImVec4              m_colourUnTexturedWindow = ImVec4( 0.17f, 0.17f, 0.9f, 0.5f );
+            ImVec4              m_colourTexturedWindow = ImVec4( 1.0f, 1.0f, 1.0f, 0.3f );
+            ImVec4              m_colourTitleBar = ImVec4( 0.0f, 0.0f, 0.2f, 0.7f );
+        } m_style = {};
     };
 
     GameUI();
@@ -90,6 +101,7 @@ private:
     float           m_screenHeight = 0.0f;
     unsigned int    m_currentFlags = 0;
     SoundPlayer*    m_soundPlayer = nullptr;
+    Config::Style   m_style = {};
     ImGuiID         m_currentHoveredID = 0;         // Keep track of which item is hovered over for sound activation
     ImGuiID         m_currentMenuID = 0;            // Keep track of the last menu to see if the menu has changed
     bool            m_newMenuThisFrame = false;     // Flag to say the menu if new this frame

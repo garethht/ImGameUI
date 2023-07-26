@@ -8,8 +8,8 @@ namespace ImGameUI
 
 const float gUnitsX = 1920.0f;
 const float gUnitsY = 1080.0f;
-const int gMenuWidth = 1000;
-const int gMenuHeight = 600;
+//const int gMenuWidth = 1000;
+//const int gMenuHeight = 600;
 
 
 GameUI::GameUI()
@@ -32,6 +32,8 @@ void GameUI::init( const Config& config )
     m_fonts[ Font_ItemSmall ] = io.Fonts->AddFontFromFileTTF( config.m_smallItemFont, config.m_smallItemFontSize );
 
     m_soundPlayer = config.m_soundPlayer;
+
+    m_style = config.m_style;
 }
 
 
@@ -60,20 +62,23 @@ void GameUI::begin( int screenWidth, int screenHeight, void* textureHandle )
         ImGuiWindowFlags_NoNavFocus;
 
     ImVec2 pos;
-    pos.x = 0.5f * ( m_screenWidth - screenX( gMenuWidth ) );
-    pos.y = 0.5f * ( m_screenHeight - screenY( gMenuHeight ) );
+    pos.x = 0.5f * ( m_screenWidth - screenX( m_style.m_menuWidth ) );
+    pos.y = 0.5f * ( m_screenHeight - screenY( m_style.m_menuHeight ) );
 
-    const ImVec2 windowSize = screenXY( gMenuWidth, gMenuHeight );
+    const ImVec2 windowSize = screenXY( m_style.m_menuWidth, m_style.m_menuHeight );
 
     ImGui::SetNextWindowPos( pos );
     ImGui::SetNextWindowSize( windowSize );
 
     ImGui::Begin( "##main_window", nullptr, windowFlags );
 
-    const ImVec2 cursorPos = ImGui::GetCursorScreenPos();
-    const ImRect windowRect( cursorPos.x, cursorPos.y, cursorPos.x + windowSize.x, cursorPos.y + windowSize.y );
+    if ( m_style.m_colourTexturedWindow.w > 0.0f && textureHandle )
+    {
+        const ImVec2 cursorPos = ImGui::GetCursorScreenPos();
+        const ImRect windowRect( cursorPos.x, cursorPos.y, cursorPos.x + windowSize.x, cursorPos.y + windowSize.y );
 
-    ImGui::GetWindowDrawList()->AddImage( textureHandle, windowRect.Min, windowRect.Max, ImVec2( 0.0f, 0.0f ), ImVec2( 1.0f, 1.0f ), IM_COL32( 255, 255, 255, 30 ) );
+        ImGui::GetWindowDrawList()->AddImage( textureHandle, windowRect.Min, windowRect.Max, ImVec2( 0.0f, 0.0f ), ImVec2( 1.0f, 1.0f ), ImGui::GetColorU32( m_style.m_colourTexturedWindow ) );
+    }
 }
 
 
@@ -116,7 +121,7 @@ void GameUI::beginItems( unsigned int flags )
     {
         ImGui::SetCursorPosX( screenX( 20 ) );
         ImGui::PushStyleColor( ImGuiCol_ChildBg, ImVec4( 0, 0, 0, 0.1f ) );
-        ImGui::BeginChild( "##ContentRegion", screenXY( gMenuWidth - 40, gMenuHeight - 240 ) );
+        ImGui::BeginChild( "##ContentRegion", screenXY( m_style.m_menuWidth - 40, m_style.m_menuHeight - 240 ) );
     }
 }
 
@@ -160,7 +165,7 @@ bool GameUI::slider( const char* name, float* value )
 
     ImGui::SetCursorPosX( screenX( 20 ) );
     ImGui::Text( name ); ImGui::SameLine();
-    ImGui::SetCursorPosX( screenX( (int)( gMenuWidth / 3.0f ) ) );
+    ImGui::SetCursorPosX( screenX( (int)( m_style.m_menuWidth / 3.0f ) ) );
     bool valueChanged = ImGui::SliderFloat( itemName, value, 0.0f, 1.0f, "%.1f" );
     if ( valueChanged )
     {
@@ -216,13 +221,16 @@ void GameUI::drawTitleBar( const char* text )
 
     ImGui::PushFont( m_fonts[ Font_Title ] );
 
-    const ImVec2 itemSize( screenX( gMenuWidth ), ImGui::CalcTextSize( text ).y + style.FramePadding.y * 2.0f );
+    const ImVec2 itemSize( screenX( m_style.m_menuWidth ), ImGui::CalcTextSize( text ).y + style.FramePadding.y * 2.0f );
 
     const ImVec2 cursorPos = ImGui::GetWindowPos();
     const ImRect buttonRect( cursorPos.x, cursorPos.y, cursorPos.x + itemSize.x, cursorPos.y + itemSize.y );
 
-    ImGui::GetWindowDrawList()->AddRectFilled( buttonRect.Min, buttonRect.Max, IM_COL32( 0, 0, 50, 180 ) );
-   // ImGui::GetWindowDrawList()->AddImage( m_menuTexture->getHandle(), buttonRect.Min, buttonRect.Max, ImVec2( 0.0f, 0.0f ), ImVec2( 1.0f, 0.2f ), IM_COL32( 255, 255, 255, 100 ) );
+    if ( m_style.m_colourTitleBar.w > 0.0f )
+    {
+        ImGui::GetWindowDrawList()->AddRectFilled( buttonRect.Min, buttonRect.Max, ImGui::GetColorU32( m_style.m_colourTitleBar ) );
+        // ImGui::GetWindowDrawList()->AddImage( m_menuTexture->getHandle(), buttonRect.Min, buttonRect.Max, ImVec2( 0.0f, 0.0f ), ImVec2( 1.0f, 0.2f ), IM_COL32( 255, 255, 255, 100 ) );
+    }
 
     ImGui::SetCursorPosX( (ImGui::GetWindowWidth() - ImGui::CalcTextSize(text).x) / 2.f);
     ImGui::SetCursorPosY( ImGui::GetCursorPosY() + style.FramePadding.y );
@@ -247,7 +255,7 @@ bool GameUI::button( const char* label )
 
     float avail = ImGui::GetContentRegionAvail().x;
 
-    float itemWidth = screenX( gMenuWidth - 100 );
+    float itemWidth = screenX( m_style.m_menuWidth - 100 );
 
     float off = (avail - itemWidth) * 0.5f;
     if ( off > 0.0f )
@@ -311,9 +319,9 @@ void GameUI::applyGameUIStyle( float scale )
 #pragma warning(push)
 #pragma warning(disable: 4305 )
 
-    style.Colors[ImGuiCol_Text] = ImVec4(1.0, 1.0, 0.0, 1.0);
-    style.Colors[ImGuiCol_TextDisabled] = ImVec4(0.4980392158031464, 0.4980392158031464, 0.4980392158031464, 1.0);
-    style.Colors[ImGuiCol_WindowBg] = ImVec4(0.1764705926179886, 0.1764705926179886, 0.9, 0.5);
+    style.Colors[ImGuiCol_Text] = m_style.m_colourText;
+    style.Colors[ImGuiCol_TextDisabled] = m_style.m_colourDisabledText;
+    style.Colors[ImGuiCol_WindowBg] = m_style.m_colourUnTexturedWindow;
     style.Colors[ImGuiCol_ChildBg] = ImVec4(0.2784313857555389, 0.2784313857555389, 0.2784313857555389, 1.0);
     style.Colors[ImGuiCol_PopupBg] = ImVec4(0.3098039329051971, 0.3098039329051971, 0.3098039329051971, 1.0);
     style.Colors[ImGuiCol_Border] = ImVec4(0.2627451121807098, 0.2627451121807098, 0.2627451121807098, 1.0);
